@@ -1,0 +1,36 @@
+name: travel_memoir_admin
+description: Travel Memoir Admin Panel
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # 🔐 Supabase
+  supabase_flutter: ^2.5.6
+
+  # 🧩 상태관리 / 유틸 (필수는 아니지만 거의 씀)
+  provider: ^6.1.2
+
+  # 🖼 이미지 / 파일
+  image_picker: ^1.0.7
+
+  # 🌐 네트워크
+  http: ^1.2.1
+
+  # 🎨 아이콘
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
