@@ -4,11 +4,17 @@ class ImageStyleModel {
   final String prompt;
   final bool isEnabled;
 
+  // 🔥 추가
+  final String? thumbnailUrl;
+  final int sortOrder;
+
   ImageStyleModel({
     required this.id,
     required this.title,
     required this.prompt,
     required this.isEnabled,
+    this.thumbnailUrl,
+    this.sortOrder = 0,
   });
 
   factory ImageStyleModel.fromMap(Map<String, dynamic> map) {
@@ -17,6 +23,10 @@ class ImageStyleModel {
       title: map['title'] as String,
       prompt: map['prompt'] as String,
       isEnabled: map['is_enabled'] as bool? ?? true,
+
+      // 🔥 추가
+      thumbnailUrl: map['thumbnail_url'] as String?,
+      sortOrder: map['sort_order'] as int? ?? 0,
     );
   }
 
@@ -24,12 +34,18 @@ class ImageStyleModel {
     String? title,
     String? prompt,
     bool? isEnabled,
+    String? thumbnailUrl,
+    int? sortOrder,
   }) {
     return ImageStyleModel(
       id: id,
       title: title ?? this.title,
       prompt: prompt ?? this.prompt,
       isEnabled: isEnabled ?? this.isEnabled,
+
+      // 🔥 추가
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 }
