@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/image_style_model.dart';
+import 'package:travel_memoir_admin/storage_paths.dart';
 
 class ImageStyleService {
   static final _client = Supabase.instance.client;
@@ -32,12 +34,11 @@ class ImageStyleService {
   }
 
   // =====================================================
-  // ➕ 스타일 추가
+  // ➕ 스타일 추가 (썸네일은 나중에 업로드)
   // =====================================================
   static Future<void> add({
     required String title,
     required String prompt,
-    String? thumbnailUrl,
   }) async {
     final maxRes = await _client
         .from('ai_image_styles')
@@ -51,7 +52,6 @@ class ImageStyleService {
     await _client.from('ai_image_styles').insert({
       'title': title,
       'prompt': prompt,
-      'thumbnail_url': thumbnailUrl,
       'sort_order': nextOrder,
       'is_enabled': true,
     });
@@ -71,7 +71,7 @@ class ImageStyleService {
   }
 
   // =====================================================
-  // 🔄 사용/미사용 토글
+  // 🔄 사용 / 미사용 토글
   // =====================================================
   static Future<void> setEnabled(String id, bool enabled) async {
     await _client.from('ai_image_styles').update({
@@ -81,19 +81,20 @@ class ImageStyleService {
   }
 
   // =====================================================
-  // 🖼️ 썸네일 업로드 (style_thumbnails/timestamp.png)
+  // 🖼️ 썸네일 업로드 (🔥 storage_paths 기준)
+  // system/style_thumbnails/{styleId}.png
   // =====================================================
   static Future<String> uploadThumbnail({
+    required String styleId,
     required Uint8List imageBytes,
   }) async {
-    final fileName = '${DateTime.now().millisecondsSinceEpoch}.png';
-    final path = 'style_thumbnails/$fileName';
+    final path = StoragePaths.styleThumbnail(styleId);
 
     await _client.storage.from(_bucket).uploadBinary(
           path,
           imageBytes,
           fileOptions: const FileOptions(
-            upsert: false,
+            upsert: true, // 🔥 수정 시 덮어쓰기
             contentType: 'image/png',
           ),
         );
@@ -102,15 +103,16 @@ class ImageStyleService {
   }
 
   // =====================================================
-  // 🗑️ 스타일 + 썸네일 삭제
+  // 🗑️ 스타일 + 썸네일 삭제 (🔥 URL 파싱 ❌)
   // =====================================================
   static Future<void> delete(ImageStyleModel style) async {
+    // 썸네일 삭제
     if (style.thumbnailUrl != null && style.thumbnailUrl!.isNotEmpty) {
-      final uri = Uri.parse(style.thumbnailUrl!);
-      final path = uri.path.split('/object/public/$_bucket/').last;
+      final path = StoragePaths.styleThumbnail(style.id);
       await _client.storage.from(_bucket).remove([path]);
     }
 
+    // DB 삭제
     await _client.from('ai_image_styles').delete().eq('id', style.id);
   }
 }

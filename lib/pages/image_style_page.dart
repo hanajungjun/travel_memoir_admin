@@ -37,7 +37,6 @@ class _ImageStylePageState extends State<ImageStylePage> {
     final orderCtrl =
         TextEditingController(text: style?.sortOrder.toString() ?? '');
 
-    String? thumbnailUrl = style?.thumbnailUrl;
     Uint8List? pickedImageBytes;
 
     final saved = await showDialog<bool>(
@@ -63,8 +62,10 @@ class _ImageStylePageState extends State<ImageStylePage> {
                   const SizedBox(height: 16),
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('썸네일',
-                        style: Theme.of(context).textTheme.labelLarge),
+                    child: Text(
+                      '썸네일',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Container(
@@ -73,8 +74,10 @@ class _ImageStylePageState extends State<ImageStylePage> {
                     color: Colors.grey.shade200,
                     child: pickedImageBytes != null
                         ? Image.memory(pickedImageBytes!, fit: BoxFit.cover)
-                        : (thumbnailUrl != null && thumbnailUrl!.isNotEmpty)
-                            ? Image.network(thumbnailUrl!, fit: BoxFit.cover)
+                        : (style?.thumbnailUrl != null &&
+                                style!.thumbnailUrl!.isNotEmpty)
+                            ? Image.network(style.thumbnailUrl!,
+                                fit: BoxFit.cover)
                             : const Icon(Icons.image,
                                 size: 40, color: Colors.grey),
                   ),
@@ -121,20 +124,49 @@ class _ImageStylePageState extends State<ImageStylePage> {
 
     if (saved != true) return;
 
-    // ✅ 썸네일을 새로 골랐을 때만 업로드
-    if (pickedImageBytes != null) {
-      thumbnailUrl = await ImageStyleService.uploadThumbnail(
-        imageBytes: pickedImageBytes!,
-      );
-    }
-
+    // ============================
+    // ✅ 신규 스타일
+    // ============================
     if (style == null) {
+      // 1️⃣ 먼저 DB insert
       await ImageStyleService.add(
         title: titleCtrl.text,
         prompt: promptCtrl.text,
-        thumbnailUrl: thumbnailUrl,
       );
-    } else {
+
+      // 2️⃣ 다시 불러와서 마지막 style 가져오기
+      await _load();
+      final newStyle = _styles.first;
+
+      // 3️⃣ 썸네일 업로드
+      if (pickedImageBytes != null) {
+        final url = await ImageStyleService.uploadThumbnail(
+          styleId: newStyle.id,
+          imageBytes: pickedImageBytes!,
+        );
+
+        await ImageStyleService.update(
+          newStyle.copyWith(
+            thumbnailUrl: url,
+            sortOrder: int.tryParse(orderCtrl.text) ?? newStyle.sortOrder,
+          ),
+        );
+      }
+    }
+
+    // ============================
+    // ✅ 기존 스타일 수정
+    // ============================
+    else {
+      String? thumbnailUrl = style.thumbnailUrl;
+
+      if (pickedImageBytes != null) {
+        thumbnailUrl = await ImageStyleService.uploadThumbnail(
+          styleId: style.id,
+          imageBytes: pickedImageBytes!,
+        );
+      }
+
       await ImageStyleService.update(
         style.copyWith(
           title: titleCtrl.text,
@@ -196,8 +228,11 @@ class _ImageStylePageState extends State<ImageStylePage> {
                   width: 48, height: 48, fit: BoxFit.cover)
               : const Icon(Icons.image),
           title: Text(style.title),
-          subtitle: Text('정렬: ${style.sortOrder}\n${style.prompt}',
-              maxLines: 2, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            '정렬: ${style.sortOrder}\n${style.prompt}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
