@@ -29,7 +29,7 @@ class _ImageStylePageState extends State<ImageStylePage> {
   }
 
   // =====================================================
-  // ✏️ 추가 / 수정
+  // ✏️ 추가 / 수정 다이얼로그
   // =====================================================
   Future<void> _openEditor({ImageStyleModel? style}) async {
     final titleCtrl = TextEditingController(text: style?.title ?? '');
@@ -42,30 +42,33 @@ class _ImageStylePageState extends State<ImageStylePage> {
     final saved = await showDialog<bool>(
       context: context,
       builder: (_) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+        builder: (context, setModalState) => AlertDialog(
           title: Text(style == null ? '스타일 추가' : '스타일 수정'),
           content: SizedBox(
             width: 520,
             child: SingleChildScrollView(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 스타일 이름
                   TextField(
                     controller: titleCtrl,
                     decoration: const InputDecoration(labelText: '스타일 이름'),
                   ),
                   const SizedBox(height: 12),
+
+                  // 정렬 순서
                   TextField(
                     controller: orderCtrl,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(labelText: '정렬 순서'),
                   ),
                   const SizedBox(height: 16),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '썸네일',
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
+
+                  // 썸네일
+                  Text(
+                    '썸네일',
+                    style: Theme.of(context).textTheme.labelLarge,
                   ),
                   const SizedBox(height: 8),
                   Container(
@@ -76,8 +79,10 @@ class _ImageStylePageState extends State<ImageStylePage> {
                         ? Image.memory(pickedImageBytes!, fit: BoxFit.cover)
                         : (style?.thumbnailUrl != null &&
                                 style!.thumbnailUrl!.isNotEmpty)
-                            ? Image.network(style.thumbnailUrl!,
-                                fit: BoxFit.cover)
+                            ? Image.network(
+                                style.thumbnailUrl!,
+                                fit: BoxFit.cover,
+                              )
                             : const Icon(Icons.image,
                                 size: 40, color: Colors.grey),
                   ),
@@ -87,15 +92,19 @@ class _ImageStylePageState extends State<ImageStylePage> {
                     label: const Text('썸네일 선택'),
                     onPressed: () async {
                       final picker = ImagePicker();
-                      final file =
-                          await picker.pickImage(source: ImageSource.gallery);
+                      final file = await picker.pickImage(
+                        source: ImageSource.gallery,
+                      );
                       if (file != null) {
                         final bytes = await file.readAsBytes();
-                        setState(() => pickedImageBytes = bytes);
+                        setModalState(() => pickedImageBytes = bytes);
                       }
                     },
                   ),
+
                   const SizedBox(height: 20),
+
+                  // 프롬프트
                   TextField(
                     controller: promptCtrl,
                     maxLines: 8,
@@ -125,20 +134,17 @@ class _ImageStylePageState extends State<ImageStylePage> {
     if (saved != true) return;
 
     // ============================
-    // ✅ 신규 스타일
+    // ✅ 신규 추가
     // ============================
     if (style == null) {
-      // 1️⃣ 먼저 DB insert
       await ImageStyleService.add(
         title: titleCtrl.text,
         prompt: promptCtrl.text,
       );
 
-      // 2️⃣ 다시 불러와서 마지막 style 가져오기
       await _load();
       final newStyle = _styles.first;
 
-      // 3️⃣ 썸네일 업로드
       if (pickedImageBytes != null) {
         final url = await ImageStyleService.uploadThumbnail(
           styleId: newStyle.id,
@@ -155,7 +161,7 @@ class _ImageStylePageState extends State<ImageStylePage> {
     }
 
     // ============================
-    // ✅ 기존 스타일 수정
+    // ✅ 기존 수정
     // ============================
     else {
       String? thumbnailUrl = style.thumbnailUrl;
@@ -213,45 +219,66 @@ class _ImageStylePageState extends State<ImageStylePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return ListView.separated(
-      itemCount: _styles.length,
-      separatorBuilder: (_, __) => const Divider(),
-      itemBuilder: (_, i) {
-        final style = _styles[i];
-        return ListTile(
-          leading: style.thumbnailUrl != null && style.thumbnailUrl!.isNotEmpty
-              ? Image.network(style.thumbnailUrl!,
-                  width: 48, height: 48, fit: BoxFit.cover)
-              : const Icon(Icons.image),
-          title: Text(style.title),
-          subtitle: Text(
-            '정렬: ${style.sortOrder}\n${style.prompt}',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          '이미지 스타일 관리',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: ElevatedButton.icon(
+              onPressed: () => _openEditor(),
+              icon: const Icon(Icons.add),
+              label: const Text('스타일 추가'),
+            ),
           ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Switch(
-                value: style.isEnabled,
-                onChanged: (v) => _toggle(style, v),
-              ),
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () => _openEditor(style: style),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () => _confirmDelete(style),
-              ),
-            ],
-          ),
-        );
-      },
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.separated(
+              itemCount: _styles.length,
+              separatorBuilder: (_, __) => const Divider(),
+              itemBuilder: (_, i) {
+                final style = _styles[i];
+                return ListTile(
+                  leading: style.thumbnailUrl != null &&
+                          style.thumbnailUrl!.isNotEmpty
+                      ? Image.network(
+                          style.thumbnailUrl!,
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                        )
+                      : const Icon(Icons.image),
+                  title: Text(style.title),
+                  subtitle: Text(
+                    '정렬: ${style.sortOrder}\n${style.prompt}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Switch(
+                        value: style.isEnabled,
+                        onChanged: (v) => _toggle(style, v),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () => _openEditor(style: style),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _confirmDelete(style),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 }
