@@ -11,6 +11,7 @@ import 'package:travel_memoir_admin/pages/button_config_page.dart';
 import 'package:travel_memoir_admin/pages/history_page.dart';
 import 'package:travel_memoir_admin/features/prompt/ai_cover_prompt_page.dart';
 import 'package:travel_memoir_admin/features/prompt/ai_map_prompt_page.dart';
+import 'package:travel_memoir_admin/features/prompt/premium_prompt_page.dart';
 
 class AdminLayout extends StatefulWidget {
   const AdminLayout({super.key});
@@ -55,19 +56,24 @@ class _AdminLayoutState extends State<AdminLayout> {
     ), // 5
 
     _AdminPage(
+      title: '프리미엄 프롬프트',
+      body: const PremiumPromptPage(),
+    ), // 6
+
+    _AdminPage(
       title: '버튼 설정',
       body: const ButtonConfigPage(),
-    ), // 6
+    ), // 7
 
     _AdminPage(
       title: '히스토리',
       body: const HistoryPage(),
-    ), // 7
+    ), // 8
 
     _AdminPage(
       title: '설정',
       body: const _SettingsPlaceholderPage(),
-    ), // 8
+    ), // 9
   ];
 
   @override

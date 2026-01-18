@@ -1,3 +1,4 @@
+// lib/pages/image_style_page.dart  (지금 파일에 맞춰 "통째로" 교체)
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -35,6 +36,7 @@ class _ImageStylePageState extends State<ImageStylePage> {
     final orderCtrl =
         TextEditingController(text: style?.sortOrder.toString() ?? '');
 
+    bool isPremium = style?.isPremium ?? false; // ✅ 추가
     Uint8List? pickedImageBytes;
 
     final saved = await showDialog<bool>(
@@ -63,7 +65,19 @@ class _ImageStylePageState extends State<ImageStylePage> {
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(labelText: '정렬 순서'),
                   ),
-                  const SizedBox(height: 16),
+
+                  const SizedBox(height: 12),
+
+                  // ✅ 프리미엄 체크박스 추가
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('프리미엄 전용 스타일'),
+                    value: isPremium,
+                    onChanged: (v) =>
+                        setModalState(() => isPremium = v ?? false),
+                  ),
+
+                  const SizedBox(height: 8),
                   Text('썸네일', style: Theme.of(context).textTheme.labelLarge),
                   const SizedBox(height: 8),
                   Container(
@@ -75,7 +89,6 @@ class _ImageStylePageState extends State<ImageStylePage> {
                         : (style?.thumbnailUrl != null &&
                                 style!.thumbnailUrl!.isNotEmpty)
                             ? Image.network(
-                                // ✨ 캐시 방지를 위해 URL 뒤에 항상 타임스탬프를 붙여서 보여줌
                                 '${style.thumbnailUrl}?t=${DateTime.now().millisecondsSinceEpoch}',
                                 fit: BoxFit.cover,
                               )
@@ -111,11 +124,13 @@ class _ImageStylePageState extends State<ImageStylePage> {
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('취소')),
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('취소'),
+            ),
             ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('저장')),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('저장'),
+            ),
           ],
         ),
       ),
@@ -123,54 +138,64 @@ class _ImageStylePageState extends State<ImageStylePage> {
 
     if (saved != true) return;
 
-    // ============================
-    // ✅ 신규 추가 로직
-    // ============================
+    // ✅ 신규 추가
     if (style == null) {
       await ImageStyleService.add(
         title: titleCtrl.text,
         titleEn: titleEnCtrl.text,
         prompt: promptCtrl.text,
+        isPremium: isPremium, // ✅ 추가
       );
+
       await _load();
       final newStyle = _styles.first;
 
       if (pickedImageBytes != null) {
-        // 새 파일 업로드 (이름에 타임스탬프 포함됨)
         final url = await ImageStyleService.uploadThumbnail(
           styleId: newStyle.id,
           imageBytes: pickedImageBytes!,
         );
 
-        await ImageStyleService.update(newStyle.copyWith(
-          thumbnailUrl: url,
-          sortOrder: int.tryParse(orderCtrl.text) ?? newStyle.sortOrder,
-        ));
+        await ImageStyleService.update(
+          newStyle.copyWith(
+            thumbnailUrl: url,
+            sortOrder: int.tryParse(orderCtrl.text) ?? newStyle.sortOrder,
+            isPremium: isPremium, // ✅ 추가
+          ),
+        );
+      } else {
+        await ImageStyleService.update(
+          newStyle.copyWith(
+            sortOrder: int.tryParse(orderCtrl.text) ?? newStyle.sortOrder,
+            isPremium: isPremium, // ✅ 추가
+          ),
+        );
       }
     }
-    // ============================
-    // ✅ 기존 수정 로직
-    // ============================
+    // ✅ 기존 수정
     else {
       String? thumbnailUrl = style.thumbnailUrl;
 
       if (pickedImageBytes != null) {
-        // 🔥 [중요] 기존 URL(oldUrl)을 넘겨주어 이전 파일을 지우고 새 파일을 만듭니다.
         thumbnailUrl = await ImageStyleService.uploadThumbnail(
           styleId: style.id,
           imageBytes: pickedImageBytes!,
-          oldUrl: style.thumbnailUrl, // 이전 주소 전달
+          oldUrl: style.thumbnailUrl,
         );
       }
 
-      await ImageStyleService.update(style.copyWith(
-        title: titleCtrl.text,
-        titleEn: titleEnCtrl.text,
-        prompt: promptCtrl.text,
-        thumbnailUrl: thumbnailUrl, // 새 주소로 DB 업데이트
-        sortOrder: int.tryParse(orderCtrl.text) ?? style.sortOrder,
-      ));
+      await ImageStyleService.update(
+        style.copyWith(
+          title: titleCtrl.text,
+          titleEn: titleEnCtrl.text,
+          prompt: promptCtrl.text,
+          thumbnailUrl: thumbnailUrl,
+          sortOrder: int.tryParse(orderCtrl.text) ?? style.sortOrder,
+          isPremium: isPremium, // ✅ 추가
+        ),
+      );
     }
+
     await _load();
   }
 
@@ -187,8 +212,9 @@ class _ImageStylePageState extends State<ImageStylePage> {
         content: const Text('이 스타일을 삭제할까요?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('취소')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
@@ -197,6 +223,7 @@ class _ImageStylePageState extends State<ImageStylePage> {
         ],
       ),
     );
+
     if (ok == true) {
       await ImageStyleService.delete(style);
       await _load();
@@ -207,8 +234,10 @@ class _ImageStylePageState extends State<ImageStylePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('이미지 스타일 관리',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          '이미지 스타일 관리',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -231,29 +260,47 @@ class _ImageStylePageState extends State<ImageStylePage> {
                   leading: style.thumbnailUrl != null &&
                           style.thumbnailUrl!.isNotEmpty
                       ? Image.network(
-                          // ✨ 리스트에서도 캐시를 방지하기 위해 쿼리 파라미터 추가
                           '${style.thumbnailUrl}?v=${DateTime.now().millisecondsSinceEpoch}',
                           width: 48,
                           height: 48,
                           fit: BoxFit.cover,
-                          key: ValueKey(style.thumbnailUrl), // 위젯 강제 빌드
+                          key: ValueKey(style.thumbnailUrl),
                         )
                       : const Icon(Icons.image),
-                  title: Text('${style.title} (${style.titleEn})'),
-                  subtitle: Text('정렬: ${style.sortOrder}\n${style.prompt}',
-                      maxLines: 2, overflow: TextOverflow.ellipsis),
+                  title: Row(
+                    children: [
+                      Expanded(
+                          child: Text('${style.title} (${style.titleEn})')),
+                      if (style.isPremium)
+                        const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Chip(
+                            label: Text('PREMIUM'),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                    ],
+                  ),
+                  subtitle: Text(
+                    '정렬: ${style.sortOrder}\n${style.prompt}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Switch(
-                          value: style.isEnabled,
-                          onChanged: (v) => _toggle(style, v)),
+                        value: style.isEnabled,
+                        onChanged: (v) => _toggle(style, v),
+                      ),
                       IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => _openEditor(style: style)),
+                        icon: const Icon(Icons.edit),
+                        onPressed: () => _openEditor(style: style),
+                      ),
                       IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => _confirmDelete(style)),
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _confirmDelete(style),
+                      ),
                     ],
                   ),
                 );

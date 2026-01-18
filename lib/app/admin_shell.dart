@@ -11,6 +11,7 @@ import 'package:travel_memoir_admin/features/prompt/ai_map_prompt_page.dart';
 import 'package:travel_memoir_admin/features/button/button_config_page.dart';
 import 'package:travel_memoir_admin/features/history/history_page.dart';
 import 'package:travel_memoir_admin/features/settings/admin_settings_page.dart';
+import 'package:travel_memoir_admin/features/prompt/premium_prompt_page.dart';
 
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key});
@@ -29,9 +30,10 @@ class _AdminShellState extends State<AdminShell> {
     StylePage(), // 3 스타일 프롬프트
     AiCoverPromptPage(), // 4 AI 커버 프롬프트
     AiMapPromptPage(), // 5 AI 지도 프롬프트
-    ButtonConfigPage(), // 6 버튼 설정
-    HistoryPage(), // 7 히스토리
-    AdminSettingsPage(), // 8 설정
+    PremiumPromptPage(), // 6.프리미엄 프롬프트
+    ButtonConfigPage(), // 7 버튼 설정
+    HistoryPage(), // 8 히스토리
+    AdminSettingsPage(), // 9 설정
   ];
 
   final _titles = const [
@@ -41,6 +43,7 @@ class _AdminShellState extends State<AdminShell> {
     '스타일 프롬프트',
     'AI 커버 프롬프트',
     'AI 지도 프롬프트',
+    '프리미엄 프롬프트',
     '버튼 설정',
     '히스토리',
     '설정',

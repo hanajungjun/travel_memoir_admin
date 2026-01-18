@@ -72,19 +72,26 @@ class AdminSideMenu extends StatelessWidget {
           _MenuItem(
             index: 6,
             selectedIndex: selectedIndex,
+            icon: Icons.map,
+            label: '프리미엄 프롬프트',
+            onTap: onSelected,
+          ),
+          _MenuItem(
+            index: 7,
+            selectedIndex: selectedIndex,
             icon: Icons.touch_app,
             label: '버튼 설정',
             onTap: onSelected,
           ),
           _MenuItem(
-            index: 7,
+            index: 8,
             selectedIndex: selectedIndex,
             icon: Icons.history,
             label: '히스토리',
             onTap: onSelected,
           ),
           _MenuItem(
-            index: 8,
+            index: 9,
             selectedIndex: selectedIndex,
             icon: Icons.settings,
             label: '설정',

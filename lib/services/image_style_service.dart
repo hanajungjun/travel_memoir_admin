@@ -1,3 +1,4 @@
+// lib/services/image_style_service.dart
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -24,23 +25,28 @@ class ImageStyleService {
     return (res as List).map((e) => ImageStyleModel.fromMap(e)).toList();
   }
 
-  static Future<void> add(
-      {required String title,
-      required String titleEn,
-      required String prompt}) async {
+  static Future<void> add({
+    required String title,
+    required String titleEn,
+    required String prompt,
+    bool isPremium = false, // ✅ 추가
+  }) async {
     final maxRes = await _client
         .from('ai_image_styles')
         .select('sort_order')
         .order('sort_order', ascending: false)
         .limit(1)
         .maybeSingle();
+
     final nextOrder = (maxRes?['sort_order'] as int? ?? 0) + 1;
+
     await _client.from('ai_image_styles').insert({
       'title': title,
       'title_en': titleEn,
       'prompt': prompt,
       'sort_order': nextOrder,
       'is_enabled': true,
+      'is_premium': isPremium, // ✅ 추가
     });
   }
 
@@ -49,8 +55,10 @@ class ImageStyleService {
       'title': style.title,
       'title_en': style.titleEn,
       'prompt': style.prompt,
-      'thumbnail_url': style.thumbnailUrl, // ✨ 새로 생성된 URL이 여기 들어감
+      'thumbnail_url': style.thumbnailUrl,
       'sort_order': style.sortOrder,
+      'is_enabled': style.isEnabled,
+      'is_premium': style.isPremium, // ✅ 추가
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', style.id);
   }
@@ -58,17 +66,15 @@ class ImageStyleService {
   static Future<void> setEnabled(String id, bool enabled) async {
     await _client.from('ai_image_styles').update({
       'is_enabled': enabled,
-      'updated_at': DateTime.now().toIso8601String()
+      'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', id);
   }
 
-  // 🔥 [핵심 수정] 썸네일 업로드 시 파일명을 유니크하게 변경
   static Future<String> uploadThumbnail({
     required String styleId,
     required Uint8List imageBytes,
-    String? oldUrl, // 이전 파일을 지우기 위해 oldUrl을 받음
+    String? oldUrl,
   }) async {
-    // 1. 기존 파일이 있다면 스토리지에서 먼저 삭제 (용량 관리)
     if (oldUrl != null && oldUrl.isNotEmpty) {
       try {
         final oldPath = oldUrl.split('$_bucket/').last.split('?').first;
@@ -78,19 +84,18 @@ class ImageStyleService {
       }
     }
 
-    // 2. 새 파일명 생성 (styleId + 타임스탬프)
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final newPath = 'system/style_thumbnails/${styleId}_$timestamp.png';
 
-    // 3. 업로드
     await _client.storage.from(_bucket).uploadBinary(
           newPath,
           imageBytes,
-          fileOptions:
-              const FileOptions(contentType: 'image/png', upsert: true),
+          fileOptions: const FileOptions(
+            contentType: 'image/png',
+            upsert: true,
+          ),
         );
 
-    // 4. 새로운 공용 URL 반환
     return _client.storage.from(_bucket).getPublicUrl(newPath);
   }
 
