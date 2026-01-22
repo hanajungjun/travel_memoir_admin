@@ -1,11 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:travel_memoir_admin/services/admin_dashboard_service.dart';
+import 'package:travel_memoir_admin/pages/admin/admin_photo_list_page.dart';
+import 'package:travel_memoir_admin/pages/admin/admin_active_user_chart_page.dart';
+import 'package:travel_memoir_admin/pages/admin/admin_new_user_chart_page.dart';
+import 'package:travel_memoir_admin/pages/admin/admin_premium_user_list_page.dart';
+import 'package:travel_memoir_admin/pages/admin/admin_premium_expiring_page.dart';
+import 'package:travel_memoir_admin/pages/admin/mini_sparkline.dart';
 
-class AdminDashboardPage extends StatelessWidget {
+class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
+
+  @override
+  State<AdminDashboardPage> createState() => _AdminDashboardPageState();
+}
+
+class _AdminDashboardPageState extends State<AdminDashboardPage> {
+  final AdminDashboardService _service = AdminDashboardService();
+
+  late Future<int> _totalUserCountFuture;
+  late Future<int> _yesterdayActiveUserCountFuture;
+  late Future<int> _uploadedPhotoCountFuture;
+  late Future<int> _activePremiumUserCountFuture;
+  late Future<int> _premiumExpiringSoonCountFuture;
+  late Future<List<int>> _premiumExpiringSparklineFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _totalUserCountFuture = _service.getTotalUserCount();
+    _yesterdayActiveUserCountFuture = _service.getYesterdayActiveUserCount();
+    _uploadedPhotoCountFuture = _service.getUploadedPhotoCount();
+    _activePremiumUserCountFuture = _service.getActivePremiumUserCount();
+    _premiumExpiringSoonCountFuture = _service.getPremiumExpiringSoonCount();
+    _premiumExpiringSparklineFuture = _service.getPremiumExpiringSparkline();
+
+    // 🔥 테스트용 더미 데이터
+    //_premiumExpiringSparklineFuture = Future.value([1, 3, 2, 5, 4, 6, 3]);
+  }
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -15,31 +51,127 @@ class AdminDashboardPage extends StatelessWidget {
             crossAxisSpacing: 16,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 1.7, // 🔥 살짝 여유 줌
-            children: const [
-              _StatCard(
-                title: '총 여행 수',
-                value: '128',
-                icon: Icons.flight_takeoff,
-                color: Colors.blue,
+            childAspectRatio: 1.7,
+            children: [
+              /// 👤 총 가입자 수
+              FutureBuilder<int>(
+                future: _totalUserCountFuture,
+                builder: (context, snapshot) {
+                  return StatCard(
+                    title: '총 가입자 수',
+                    subtitle: '누적 가입자',
+                    value: snapshot.data?.toString() ?? '-',
+                    icon: Icons.people,
+                    color: Colors.blue,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AdminNewUserChartPage(),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
-              _StatCard(
-                title: '작성된 일기',
-                value: '2,431',
-                icon: Icons.book,
-                color: Colors.green,
+
+              /// 🔑 어제 접속자 수
+              FutureBuilder<int>(
+                future: _yesterdayActiveUserCountFuture,
+                builder: (context, snapshot) {
+                  return StatCard(
+                    title: '어제 접속자 수',
+                    subtitle: '활동 기준 (updated_at)',
+                    value: snapshot.data?.toString() ?? '-',
+                    icon: Icons.login,
+                    color: Colors.green,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AdminActiveUserChartPage(),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
-              _StatCard(
-                title: 'AI 이미지',
-                value: '1,054',
-                icon: Icons.auto_awesome,
-                color: Colors.purple,
+
+              /// 🖼 업로드된 사진 수
+              FutureBuilder<int>(
+                future: _uploadedPhotoCountFuture,
+                builder: (context, snapshot) {
+                  return StatCard(
+                    title: '업로드된 사진 수',
+                    subtitle: '유저 업로드 기준',
+                    value: snapshot.data?.toString() ?? '-',
+                    icon: Icons.photo_library,
+                    color: Colors.purple,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AdminPhotoListPage(),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
-              _StatCard(
-                title: '오늘 생성',
-                value: '23',
-                icon: Icons.today,
-                color: Colors.orange,
+
+              /// 💎 현재 프리미엄 유저
+              FutureBuilder<int>(
+                future: _activePremiumUserCountFuture,
+                builder: (context, snapshot) {
+                  return StatCard(
+                    title: '프리미엄 유저',
+                    subtitle: '현재 활성',
+                    value: snapshot.data?.toString() ?? '-',
+                    icon: Icons.workspace_premium,
+                    color: Colors.amber,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AdminPremiumUserListPage(),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+
+              /// ⏰ 만료 예정 + 스파크라인
+              FutureBuilder<List<int>>(
+                future: _premiumExpiringSparklineFuture,
+                builder: (context, sparkSnapshot) {
+                  return FutureBuilder<int>(
+                    future: _premiumExpiringSoonCountFuture,
+                    builder: (context, countSnapshot) {
+                      return StatCard(
+                        title: '만료 예정',
+                        subtitle: '7일 이내',
+                        value: countSnapshot.data?.toString() ?? '-',
+                        icon: Icons.timer,
+                        color: Colors.redAccent,
+                        trailing: sparkSnapshot.hasData
+                            ? MiniSparkline(
+                                values: sparkSnapshot.data!,
+                                color: Colors.redAccent,
+                              )
+                            : null,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminPremiumExpiringPage(),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
               ),
             ],
           ),
@@ -57,12 +189,18 @@ class AdminDashboardPage extends StatelessWidget {
               children: [
                 Text(
                   '관리자 안내',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 SizedBox(height: 8),
                 Text(
-                  '왼쪽 메뉴에서 AI 프롬프트, 스타일, 이미지 버튼을 관리할 수 있습니다.\n'
-                  '모든 변경 사항은 즉시 사용자 앱에 반영됩니다.',
+                  '총 가입자 수는 users 테이블 기준 누적 값입니다.\n'
+                  '어제 접속자 수는 updated_at 기준 활동 사용자 수입니다.\n'
+                  '업로드된 사진 수는 travel_days.photo_urls 기준입니다.\n'
+                  '프리미엄 유저는 is_premium = true 기준입니다.\n'
+                  '만료 예정은 premium_until 기준 7일 이내 사용자입니다.',
                   style: TextStyle(color: Colors.grey),
                 ),
               ],
@@ -74,69 +212,93 @@ class AdminDashboardPage extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
+/* ====================== STAT CARD ====================== */
+class StatCard extends StatelessWidget {
   final String title;
+  final String subtitle;
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback onTap;
+  final Widget? trailing;
 
-  const _StatCard({
+  const StatCard({
+    super.key,
     required this.title,
+    required this.subtitle,
     required this.value,
     required this.icon,
     required this.color,
+    required this.onTap,
+    this.trailing,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween, // 🔥 핵심
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// 🔹 상단: 아이콘 + 값 + 스파크라인
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: color),
                 ),
-                child: Icon(icon, color: color),
-              ),
-              const Spacer(),
-              const Icon(Icons.more_vert, size: 18, color: Colors.grey),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                const SizedBox(width: 10),
+
+                /// 값
+                Expanded(
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
+
+                /// 스파크라인
+                if (trailing != null) trailing!,
+              ],
+            ),
+
+            const SizedBox(height: 10),
+
+            /// 🔹 하단: title / subtitle (여기가 빠져 있었음)
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
               ),
-              const SizedBox(height: 2),
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
