@@ -44,7 +44,7 @@ class _PromptPageState extends State<PromptPage> {
         Row(
           children: [
             const Text(
-              'AI 프롬프트 관리',
+              'AI 프롬프트 관리(일기 요약 프롬프트)',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const Spacer(),
