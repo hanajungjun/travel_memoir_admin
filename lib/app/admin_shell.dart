@@ -38,8 +38,8 @@ class _AdminShellState extends State<AdminShell> {
 
   final _titles = const [
     '대시보드',
-    'AI 프롬프트',
-    'AI 이미지 프롬프트',
+    'AI 프롬프트(일기 요약 프롬프트)',
+    'AI 이미지 프롬프트(이미지 요약 프롬프트)',
     '스타일 프롬프트',
     'AI 커버 프롬프트',
     'AI 지도 프롬프트',
