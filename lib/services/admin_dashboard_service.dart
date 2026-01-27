@@ -58,4 +58,19 @@ class AdminDashboardService {
         .map((e) => e['expiring_count'] as int)
         .toList();
   }
+
+  // 심사 모드 상태 가져오기
+  Future<bool> getReviewMode() async {
+    final data = await Supabase.instance.client
+        .from('app_config')
+        .select('is_review_mode')
+        .single();
+    return data['is_review_mode'] ?? false;
+  }
+
+// 심사 모드 상태 업데이트하기
+  Future<void> updateReviewMode(bool isAdminReview) async {
+    await Supabase.instance.client.from('app_config').update(
+        {'is_review_mode': isAdminReview}).eq('id', 1); // id가 1인 설정을 업데이트
+  }
 }

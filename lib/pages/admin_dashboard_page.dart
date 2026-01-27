@@ -6,6 +6,7 @@ import 'package:travel_memoir_admin/pages/admin/admin_new_user_chart_page.dart';
 import 'package:travel_memoir_admin/pages/admin/admin_premium_user_list_page.dart';
 import 'package:travel_memoir_admin/pages/admin/admin_premium_expiring_page.dart';
 import 'package:travel_memoir_admin/pages/admin/mini_sparkline.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -23,19 +24,24 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   late Future<int> _activePremiumUserCountFuture;
   late Future<int> _premiumExpiringSoonCountFuture;
   late Future<List<int>> _premiumExpiringSparklineFuture;
-
+  late Future<bool> _isReviewModeFuture;
   @override
   void initState() {
     super.initState();
-    _totalUserCountFuture = _service.getTotalUserCount();
-    _yesterdayActiveUserCountFuture = _service.getYesterdayActiveUserCount();
-    _uploadedPhotoCountFuture = _service.getUploadedPhotoCount();
-    _activePremiumUserCountFuture = _service.getActivePremiumUserCount();
-    _premiumExpiringSoonCountFuture = _service.getPremiumExpiringSoonCount();
-    _premiumExpiringSparklineFuture = _service.getPremiumExpiringSparkline();
+    _refreshStats();
+  }
 
-    // 🔥 테스트용 더미 데이터
-    //_premiumExpiringSparklineFuture = Future.value([1, 3, 2, 5, 4, 6, 3]);
+// 데이터 새로고침 함수
+  void _refreshStats() {
+    setState(() {
+      _totalUserCountFuture = _service.getTotalUserCount();
+      _yesterdayActiveUserCountFuture = _service.getYesterdayActiveUserCount();
+      _uploadedPhotoCountFuture = _service.getUploadedPhotoCount();
+      _activePremiumUserCountFuture = _service.getActivePremiumUserCount();
+      _premiumExpiringSoonCountFuture = _service.getPremiumExpiringSoonCount();
+      _premiumExpiringSparklineFuture = _service.getPremiumExpiringSparkline();
+      _isReviewModeFuture = _service.getReviewMode(); // 👈 심사 모드 로드
+    });
   }
 
   @override
@@ -169,6 +175,33 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           );
                         },
                       );
+                    },
+                  );
+                },
+              ),
+
+              /// 🍎 6. [신규] 애플 심사 모드 토글
+              FutureBuilder<bool>(
+                future: _isReviewModeFuture,
+                builder: (context, snapshot) {
+                  bool isOn = snapshot.data ?? false;
+                  return StatCard(
+                    title: '애플 심사 모드',
+                    subtitle: isOn ? '심사 중 (ID/PW 노출)' : '일반 모드 (소셜 전용)',
+                    value: isOn ? 'ON' : 'OFF',
+                    icon: Icons.apple,
+                    color: isOn ? Colors.orange : Colors.grey,
+                    trailing: Switch(
+                      value: isOn,
+                      activeColor: Colors.orange,
+                      onChanged: (val) async {
+                        await _service.updateReviewMode(val);
+                        _refreshStats(); // 상태 변경 후 즉시 새로고침
+                      },
+                    ),
+                    onTap: () async {
+                      await _service.updateReviewMode(!isOn);
+                      _refreshStats();
                     },
                   );
                 },
