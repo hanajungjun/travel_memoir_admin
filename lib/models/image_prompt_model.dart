@@ -1,22 +1,34 @@
 class ImagePromptModel {
   final String id;
   final String title;
-  final String content;
+  final String contentKo;
+  final String contentEn;
   final bool isActive;
 
   ImagePromptModel({
     required this.id,
     required this.title,
-    required this.content,
+    required this.contentKo,
+    required this.contentEn,
     required this.isActive,
   });
 
-  factory ImagePromptModel.fromMap(Map<String, dynamic> map) {
+  factory ImagePromptModel.fromJson(Map<String, dynamic> json) {
     return ImagePromptModel(
-      id: map['id'],
-      title: map['title'],
-      content: map['content'],
-      isActive: map['is_active'],
+      id: json['id'],
+      title: json['title'] ?? '',
+      contentKo: json['content_ko'] ?? '',
+      contentEn: json['content_en'] ?? '',
+      isActive: json['is_active'] ?? false,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'content_ko': contentKo,
+      'content_en': contentEn,
+      'is_active': isActive,
+    };
   }
 }

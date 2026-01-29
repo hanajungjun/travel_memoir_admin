@@ -1,4 +1,3 @@
-// lib/pages/image_style_page.dart  (지금 파일에 맞춰 "통째로" 교체)
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -29,6 +28,25 @@ class _ImageStylePageState extends State<ImageStylePage> {
     setState(() => _loading = false);
   }
 
+  Future<void> _onReorder(int oldIndex, int newIndex) async {
+    setState(() {
+      if (oldIndex < newIndex) {
+        newIndex -= 1;
+      }
+      final item = _styles.removeAt(oldIndex);
+      _styles.insert(newIndex, item);
+    });
+
+    try {
+      await ImageStyleService.updateOrder(_styles);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('순서 저장 실패: $e')),
+      );
+    }
+  }
+
   Future<void> _openEditor({ImageStyleModel? style}) async {
     final titleCtrl = TextEditingController(text: style?.title ?? '');
     final titleEnCtrl = TextEditingController(text: style?.titleEn ?? '');
@@ -36,7 +54,7 @@ class _ImageStylePageState extends State<ImageStylePage> {
     final orderCtrl =
         TextEditingController(text: style?.sortOrder.toString() ?? '');
 
-    bool isPremium = style?.isPremium ?? false; // ✅ 추가
+    bool isPremium = style?.isPremium ?? false;
     Uint8List? pickedImageBytes;
 
     final saved = await showDialog<bool>(
@@ -60,15 +78,6 @@ class _ImageStylePageState extends State<ImageStylePage> {
                     decoration: const InputDecoration(labelText: '스타일 이름 (영어)'),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: orderCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: '정렬 순서'),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // ✅ 프리미엄 체크박스 추가
                   CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('프리미엄 전용 스타일'),
@@ -76,26 +85,32 @@ class _ImageStylePageState extends State<ImageStylePage> {
                     onChanged: (v) =>
                         setModalState(() => isPremium = v ?? false),
                   ),
-
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                   Text('썸네일', style: Theme.of(context).textTheme.labelLarge),
                   const SizedBox(height: 8),
                   Container(
-                    width: 120,
-                    height: 120,
-                    color: Colors.grey.shade200,
-                    child: pickedImageBytes != null
-                        ? Image.memory(pickedImageBytes!, fit: BoxFit.cover)
-                        : (style?.thumbnailUrl != null &&
-                                style!.thumbnailUrl!.isNotEmpty)
-                            ? Image.network(
-                                '${style.thumbnailUrl}?t=${DateTime.now().millisecondsSinceEpoch}',
-                                fit: BoxFit.cover,
-                              )
-                            : const Icon(Icons.image,
-                                size: 40, color: Colors.grey),
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: pickedImageBytes != null
+                          ? Image.memory(pickedImageBytes!, fit: BoxFit.cover)
+                          : (style?.thumbnailUrl != null &&
+                                  style!.thumbnailUrl!.isNotEmpty)
+                              ? Image.network(
+                                  '${style.thumbnailUrl}?t=${DateTime.now().millisecondsSinceEpoch}',
+                                  fit: BoxFit.cover,
+                                )
+                              : const Icon(Icons.image,
+                                  size: 50, color: Colors.grey),
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.photo_library),
                     label: const Text('썸네일 선택'),
@@ -109,13 +124,14 @@ class _ImageStylePageState extends State<ImageStylePage> {
                       }
                     },
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                   TextField(
                     controller: promptCtrl,
-                    maxLines: 8,
+                    maxLines: 10,
                     decoration: const InputDecoration(
                       labelText: '이미지 프롬프트',
                       alignLabelWithHint: true,
+                      border: OutlineInputBorder(),
                     ),
                   ),
                 ],
@@ -124,13 +140,11 @@ class _ImageStylePageState extends State<ImageStylePage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('취소'),
-            ),
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('취소')),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('저장'),
-            ),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('저장')),
           ],
         ),
       ),
@@ -138,44 +152,15 @@ class _ImageStylePageState extends State<ImageStylePage> {
 
     if (saved != true) return;
 
-    // ✅ 신규 추가
     if (style == null) {
       await ImageStyleService.add(
         title: titleCtrl.text,
         titleEn: titleEnCtrl.text,
         prompt: promptCtrl.text,
-        isPremium: isPremium, // ✅ 추가
+        isPremium: isPremium,
       );
-
-      await _load();
-      final newStyle = _styles.first;
-
-      if (pickedImageBytes != null) {
-        final url = await ImageStyleService.uploadThumbnail(
-          styleId: newStyle.id,
-          imageBytes: pickedImageBytes!,
-        );
-
-        await ImageStyleService.update(
-          newStyle.copyWith(
-            thumbnailUrl: url,
-            sortOrder: int.tryParse(orderCtrl.text) ?? newStyle.sortOrder,
-            isPremium: isPremium, // ✅ 추가
-          ),
-        );
-      } else {
-        await ImageStyleService.update(
-          newStyle.copyWith(
-            sortOrder: int.tryParse(orderCtrl.text) ?? newStyle.sortOrder,
-            isPremium: isPremium, // ✅ 추가
-          ),
-        );
-      }
-    }
-    // ✅ 기존 수정
-    else {
+    } else {
       String? thumbnailUrl = style.thumbnailUrl;
-
       if (pickedImageBytes != null) {
         thumbnailUrl = await ImageStyleService.uploadThumbnail(
           styleId: style.id,
@@ -183,7 +168,6 @@ class _ImageStylePageState extends State<ImageStylePage> {
           oldUrl: style.thumbnailUrl,
         );
       }
-
       await ImageStyleService.update(
         style.copyWith(
           title: titleCtrl.text,
@@ -191,11 +175,10 @@ class _ImageStylePageState extends State<ImageStylePage> {
           prompt: promptCtrl.text,
           thumbnailUrl: thumbnailUrl,
           sortOrder: int.tryParse(orderCtrl.text) ?? style.sortOrder,
-          isPremium: isPremium, // ✅ 추가
+          isPremium: isPremium,
         ),
       );
     }
-
     await _load();
   }
 
@@ -212,9 +195,8 @@ class _ImageStylePageState extends State<ImageStylePage> {
         content: const Text('이 스타일을 삭제할까요?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('취소')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
@@ -223,7 +205,6 @@ class _ImageStylePageState extends State<ImageStylePage> {
         ],
       ),
     );
-
     if (ok == true) {
       await ImageStyleService.delete(style);
       await _load();
@@ -234,13 +215,12 @@ class _ImageStylePageState extends State<ImageStylePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          '이미지 스타일 관리',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('이미지 스타일 관리 (정렬 최적화)',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        elevation: 0,
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.only(right: 16),
             child: ElevatedButton.icon(
               onPressed: () => _openEditor(),
               icon: const Icon(Icons.add),
@@ -251,58 +231,101 @@ class _ImageStylePageState extends State<ImageStylePage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.separated(
+          : ReorderableListView.builder(
               itemCount: _styles.length,
-              separatorBuilder: (_, __) => const Divider(),
-              itemBuilder: (_, i) {
+              onReorder: _onReorder,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemBuilder: (context, i) {
                 final style = _styles[i];
-                return ListTile(
-                  leading: style.thumbnailUrl != null &&
-                          style.thumbnailUrl!.isNotEmpty
-                      ? Image.network(
-                          '${style.thumbnailUrl}?v=${DateTime.now().millisecondsSinceEpoch}',
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                          key: ValueKey(style.thumbnailUrl),
-                        )
-                      : const Icon(Icons.image),
-                  title: Row(
-                    children: [
-                      Expanded(
-                          child: Text('${style.title} (${style.titleEn})')),
-                      if (style.isPremium)
-                        const Padding(
-                          padding: EdgeInsets.only(left: 8),
-                          child: Chip(
-                            label: Text('PREMIUM'),
-                            visualDensity: VisualDensity.compact,
+                return Column(
+                  key: ValueKey(style.id),
+                  children: [
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 8),
+                      leading: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.drag_indicator, color: Colors.grey),
+                          const SizedBox(width: 12),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: style.thumbnailUrl != null &&
+                                    style.thumbnailUrl!.isNotEmpty
+                                ? Image.network(
+                                    '${style.thumbnailUrl}?v=${DateTime.now().millisecondsSinceEpoch}',
+                                    width: 56,
+                                    height: 56,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Container(
+                                    width: 56,
+                                    height: 56,
+                                    color: Colors.grey.shade200,
+                                    child: const Icon(Icons.image,
+                                        size: 28, color: Colors.grey),
+                                  ),
                           ),
-                        ),
-                    ],
-                  ),
-                  subtitle: Text(
-                    '정렬: ${style.sortOrder}\n${style.prompt}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Switch(
-                        value: style.isEnabled,
-                        onChanged: (v) => _toggle(style, v),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: () => _openEditor(style: style),
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${style.title} (${style.titleEn})',
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          if (style.isPremium)
+                            Container(
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.shade100,
+                                borderRadius: BorderRadius.circular(4),
+                                border:
+                                    Border.all(color: Colors.amber.shade300),
+                              ),
+                              child: const Text(
+                                'PREMIUM',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber, // 어두운 금색
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () => _confirmDelete(style),
+                      // 🗑 지저분했던 subtitle 삭제 완료!
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Switch(
+                            value: style.isEnabled,
+                            onChanged: (v) => _toggle(style, v),
+                            activeColor: Colors.blue,
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon:
+                                const Icon(Icons.edit, color: Colors.blueGrey),
+                            onPressed: () => _openEditor(style: style),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline,
+                                color: Colors.redAccent),
+                            onPressed: () => _confirmDelete(style),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const Divider(height: 1, indent: 80),
+                  ],
                 );
               },
             ),

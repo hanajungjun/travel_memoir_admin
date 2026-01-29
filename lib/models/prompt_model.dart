@@ -1,44 +1,34 @@
 class PromptModel {
   final String id;
   final String title;
-  final String content;
+  final String contentKo;
+  final String contentEn;
   final bool isActive;
 
   PromptModel({
     required this.id,
     required this.title,
-    required this.content,
+    required this.contentKo,
+    required this.contentEn,
     required this.isActive,
   });
 
-  factory PromptModel.fromMap(Map<String, dynamic> map) {
+  factory PromptModel.fromJson(Map<String, dynamic> json) {
     return PromptModel(
-      id: map['id'] as String,
-      title: map['title'] as String,
-      content: map['content'] as String,
-      isActive: map['is_active'] as bool,
+      id: json['id'],
+      title: json['title'],
+      contentKo: json['content_ko'] ?? '',
+      contentEn: json['content_en'] ?? '',
+      isActive: json['is_active'] ?? false,
     );
   }
 
-  Map<String, dynamic> toMap() {
+  Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'title': title,
-      'content': content,
+      'content_ko': contentKo,
+      'content_en': contentEn,
       'is_active': isActive,
     };
-  }
-
-  PromptModel copyWith({
-    String? title,
-    String? content,
-    bool? isActive,
-  }) {
-    return PromptModel(
-      id: id,
-      title: title ?? this.title,
-      content: content ?? this.content,
-      isActive: isActive ?? this.isActive,
-    );
   }
 }

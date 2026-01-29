@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-
-// ✅ 절대경로 import (이게 핵심)
 import 'package:travel_memoir_admin/models/image_prompt_model.dart';
 import 'package:travel_memoir_admin/services/image_prompt_service.dart';
 
@@ -16,7 +14,8 @@ class _ImagePromptPageState extends State<ImagePromptPage> {
   ImagePromptModel? selected;
 
   final titleCtrl = TextEditingController();
-  final contentCtrl = TextEditingController();
+  final koCtrl = TextEditingController();
+  final enCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -25,131 +24,156 @@ class _ImagePromptPageState extends State<ImagePromptPage> {
   }
 
   Future<void> _load() async {
-    prompts = await ImagePromptService.fetchAll();
-    setState(() {});
+    final data = await ImagePromptService.fetchAll();
+    setState(() {
+      prompts = data;
+    });
   }
 
   void _newPrompt() {
     selected = null;
-    titleCtrl.text = '기본 이미지 프롬프트';
-    contentCtrl.text = '''
-A flat illustration inspired by a travel diary.
-
-Style:
-- Soft pastel colors
-- Clean background
-- Calm and warm mood
-- Illustration, not realistic photo
-
-Rules:
-- No text
-- No letters
-- No captions
-- No logos
-''';
+    titleCtrl.text = '새 이미지 프롬프트';
+    koCtrl.clear();
+    enCtrl.text = 'A flat illustration...'; // 기본 예시
     setState(() {});
   }
 
   void _select(ImagePromptModel p) {
     selected = p;
     titleCtrl.text = p.title;
-    contentCtrl.text = p.content;
+    koCtrl.text = p.contentKo;
+    enCtrl.text = p.contentEn;
     setState(() {});
   }
 
   Future<void> _save() async {
-    if (titleCtrl.text.trim().isEmpty || contentCtrl.text.trim().isEmpty) {
-      return;
-    }
+    if (titleCtrl.text.trim().isEmpty) return;
 
     if (selected == null) {
       await ImagePromptService.add(
         title: titleCtrl.text.trim(),
-        content: contentCtrl.text.trim(),
+        ko: koCtrl.text.trim(),
+        en: enCtrl.text.trim(),
       );
     } else {
       await ImagePromptService.update(
         ImagePromptModel(
           id: selected!.id,
           title: titleCtrl.text.trim(),
-          content: contentCtrl.text.trim(),
-          isActive: true,
+          contentKo: koCtrl.text.trim(),
+          contentEn: enCtrl.text.trim(),
+          isActive: selected!.isActive,
         ),
       );
     }
-
     await _load();
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('저장되었습니다!')));
   }
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // =====================
         // 📌 좌측 리스트
-        // =====================
         SizedBox(
-          width: 260,
+          width: 280,
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(16),
                 child: ElevatedButton.icon(
                   onPressed: _newPrompt,
                   icon: const Icon(Icons.add),
-                  label: const Text('새 이미지 프롬프트'),
+                  label: const Text('새 프롬프트'),
+                  style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 45)),
                 ),
               ),
               Expanded(
-                child: ListView(
-                  children: prompts.map((p) {
+                child: ListView.builder(
+                  itemCount: prompts.length,
+                  itemBuilder: (context, index) {
+                    final p = prompts[index];
                     return ListTile(
-                      title: Text(p.title),
+                      selected: selected?.id == p.id,
+                      title: Text(p.title,
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
                       trailing: p.isActive
-                          ? const Icon(Icons.check, color: Colors.green)
+                          ? const Icon(Icons.check_circle,
+                              color: Colors.green, size: 20)
                           : null,
                       onTap: () => _select(p),
                     );
-                  }).toList(),
+                  },
                 ),
               ),
             ],
           ),
         ),
-
         const VerticalDivider(width: 1),
-
-        // =====================
-        // ✏️ 우측 에디터
-        // =====================
+        // ✏️ 우측 에디터 (시원시원하게!)
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(32),
             child: Column(
               children: [
-                TextField(
-                  controller: titleCtrl,
-                  decoration: const InputDecoration(labelText: '제목'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: titleCtrl,
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold),
+                        decoration: const InputDecoration(
+                            labelText: '제목', border: UnderlineInputBorder()),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    ElevatedButton(
+                      onPressed: _save,
+                      style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 40, vertical: 20)),
+                      child: const Text('저장하기'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 32),
+                const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('🇰🇷 한글 가이드 (KO)',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.blue))),
+                const SizedBox(height: 8),
                 Expanded(
                   child: TextField(
-                    controller: contentCtrl,
+                    controller: koCtrl,
                     maxLines: null,
                     expands: true,
+                    textAlignVertical: TextAlignVertical.top,
                     decoration: const InputDecoration(
-                      labelText: '이미지 프롬프트 내용',
-                      alignLabelWithHint: true,
-                    ),
+                        border: OutlineInputBorder(),
+                        hintText: '한글 설명을 적으세요...'),
                   ),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 44,
-                  child: ElevatedButton(
-                    onPressed: _save,
-                    child: const Text('저장 및 활성화'),
+                const SizedBox(height: 24),
+                const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('🇺🇸 이미지 생성 프롬프트 (EN)',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange))),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: TextField(
+                    controller: enCtrl,
+                    maxLines: null,
+                    expands: true,
+                    textAlignVertical: TextAlignVertical.top,
+                    decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: 'AI가 읽을 영어 프롬프트를 적으세요...'),
                   ),
                 ),
               ],

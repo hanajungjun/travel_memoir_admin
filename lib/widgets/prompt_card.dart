@@ -3,7 +3,7 @@ import 'package:travel_memoir_admin/models/prompt_model.dart';
 
 class PromptCard extends StatelessWidget {
   final PromptModel prompt;
-  final ValueChanged<bool> onToggle;
+  final ValueChanged<bool?> onToggle; // 모델 구조에 맞춰 bool?로 대응하거나 bool로 강제
   final VoidCallback onEdit;
 
   const PromptCard({
@@ -27,30 +27,69 @@ class PromptCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                prompt.title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  prompt.title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              const Spacer(),
+              // 활성화 스위치
               Switch(
                 value: prompt.isActive,
                 onChanged: onToggle,
               ),
+              // 수정 버튼
               IconButton(
-                icon: const Icon(Icons.edit),
+                icon: const Icon(Icons.edit, color: Colors.blueGrey),
                 onPressed: onEdit,
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const Divider(height: 20), // 구분선 추가
+
+          // --- 한글 프롬프트 영역 ---
+          const Row(
+            children: [
+              Icon(Icons.language, size: 14, color: Colors.blue),
+              SizedBox(width: 4),
+              Text('KO',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue)),
+            ],
+          ),
+          const SizedBox(height: 4),
           Text(
-            prompt.content,
-            maxLines: 3,
+            prompt.contentKo,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.grey),
+            style: const TextStyle(color: Colors.black87, fontSize: 13),
+          ),
+
+          const SizedBox(height: 12),
+
+          // --- 영어 프롬프트 영역 ---
+          const Row(
+            children: [
+              Icon(Icons.language, size: 14, color: Colors.orange),
+              SizedBox(width: 4),
+              Text('EN',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            prompt.contentEn,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.black87, fontSize: 13),
           ),
         ],
       ),

@@ -1,4 +1,3 @@
-// lib/services/image_style_service.dart
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,11 +7,12 @@ class ImageStyleService {
   static final _client = Supabase.instance.client;
   static const _bucket = 'travel_images';
 
+  // ✅ 관리자 페이지를 위해 sort_order 순으로 가져오도록 수정
   static Future<List<ImageStyleModel>> fetchAll() async {
     final res = await _client
         .from('ai_image_styles')
         .select()
-        .order('created_at', ascending: false);
+        .order('sort_order', ascending: true); // 정렬 순서대로 로드
     return (res as List).map((e) => ImageStyleModel.fromMap(e)).toList();
   }
 
@@ -25,11 +25,20 @@ class ImageStyleService {
     return (res as List).map((e) => ImageStyleModel.fromMap(e)).toList();
   }
 
+  // 🔥 신규 추가: 드래그 앤 드롭 후 순서 일괄 업데이트
+  static Future<void> updateOrder(List<ImageStyleModel> styles) async {
+    for (int i = 0; i < styles.length; i++) {
+      await _client
+          .from('ai_image_styles')
+          .update({'sort_order': i}).eq('id', styles[i].id);
+    }
+  }
+
   static Future<void> add({
     required String title,
     required String titleEn,
     required String prompt,
-    bool isPremium = false, // ✅ 추가
+    bool isPremium = false,
   }) async {
     final maxRes = await _client
         .from('ai_image_styles')
@@ -46,7 +55,7 @@ class ImageStyleService {
       'prompt': prompt,
       'sort_order': nextOrder,
       'is_enabled': true,
-      'is_premium': isPremium, // ✅ 추가
+      'is_premium': isPremium,
     });
   }
 
@@ -58,7 +67,7 @@ class ImageStyleService {
       'thumbnail_url': style.thumbnailUrl,
       'sort_order': style.sortOrder,
       'is_enabled': style.isEnabled,
-      'is_premium': style.isPremium, // ✅ 추가
+      'is_premium': style.isPremium,
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', style.id);
   }

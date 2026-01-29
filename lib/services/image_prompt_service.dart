@@ -2,51 +2,37 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/image_prompt_model.dart';
 
 class ImagePromptService {
-  static final _client = Supabase.instance.client;
+  static final _supabase = Supabase.instance.client;
 
-  // 📥 전체 이미지 프롬프트
+  // 테이블 이름 ai_image_prompts 확인 완료
   static Future<List<ImagePromptModel>> fetchAll() async {
-    final res = await _client
+    final response = await _supabase
         .from('ai_image_prompts')
         .select()
         .order('created_at', ascending: false);
-
-    return (res as List).map((e) => ImagePromptModel.fromMap(e)).toList();
+    return (response as List).map((e) => ImagePromptModel.fromJson(e)).toList();
   }
 
-  // ➕ 추가
-  static Future<void> add({
-    required String title,
-    required String content,
-  }) async {
-    final res = await _client
-        .from('ai_image_prompts')
-        .insert({
-          'title': title,
-          'content': content,
-          'is_active': false,
-        })
-        .select()
-        .single();
-
-    await setActive(res['id']);
+  static Future<void> add(
+      {required String title, required String ko, required String en}) async {
+    await _supabase.from('ai_image_prompts').insert({
+      'title': title,
+      'content_ko': ko,
+      'content_en': en,
+      'is_active': false,
+    });
   }
 
-  // ✏️ 수정
-  static Future<void> update(ImagePromptModel prompt) async {
-    await _client.from('ai_image_prompts').update({
-      'title': prompt.title,
-      'content': prompt.content,
-    }).eq('id', prompt.id);
-
-    await setActive(prompt.id);
+  static Future<void> update(ImagePromptModel p) async {
+    await _supabase.from('ai_image_prompts').update(p.toJson()).eq('id', p.id);
   }
 
-  // 🔄 활성화
   static Future<void> setActive(String id) async {
-    await _client.rpc(
-      'set_active_image_prompt',
-      params: {'target_id': id},
-    );
+    // 모든 프롬프트 비활성화 후 선택한 것만 활성화
+    await _supabase.from('ai_image_prompts').update({'is_active': false}).neq(
+        'id', '00000000-0000-0000-0000-000000000000');
+    await _supabase
+        .from('ai_image_prompts')
+        .update({'is_active': true}).eq('id', id);
   }
 }
