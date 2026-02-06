@@ -51,8 +51,8 @@ class _AdminLayoutState extends State<AdminLayout> {
     ), // 4
 
     _AdminPage(
-      title: 'AI 지도 프롬프트',
-      body: const AiMapPromptPage(),
+      title: '로그확인',
+      body: const AppLogPage(),
     ), // 5
 
     _AdminPage(

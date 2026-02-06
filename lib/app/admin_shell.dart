@@ -29,7 +29,7 @@ class _AdminShellState extends State<AdminShell> {
     ImagePromptPage(), // 2 AI 이미지 프롬프트
     StylePage(), // 3 스타일 프롬프트
     AiCoverPromptPage(), // 4 AI 커버 프롬프트
-    AiMapPromptPage(), // 5 AI 지도 프롬프트
+    AppLogPage(), // 5 로그확인
     PremiumPromptPage(), // 6.프리미엄 프롬프트
     ButtonConfigPage(), // 7 버튼 설정
     HistoryPage(), // 8 히스토리
@@ -42,7 +42,7 @@ class _AdminShellState extends State<AdminShell> {
     'AI 이미지 프롬프트(이미지 요약 프롬프트)',
     '스타일 프롬프트',
     'AI 커버 프롬프트',
-    'AI 지도 프롬프트',
+    '로그확인',
     '프리미엄 프롬프트',
     '버튼 설정',
     '히스토리',

@@ -66,7 +66,7 @@ class AdminSideMenu extends StatelessWidget {
             index: 5,
             selectedIndex: selectedIndex,
             icon: Icons.map,
-            label: 'AI 지도 프롬프트',
+            label: '로그확인',
             onTap: onSelected,
           ),
           _MenuItem(
