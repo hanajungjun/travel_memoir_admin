@@ -14,10 +14,9 @@ class _AppLogPageState extends State<AppLogPage> {
   final _searchController = TextEditingController();
 
   String _searchQuery = "";
-  DateTime? _startDate; // ✅ 시작일
-  DateTime? _endDate; // ✅ 종료일
+  DateTime? _startDate;
+  DateTime? _endDate;
 
-  // ✅ 로그 전체 삭제 (필수 기능)
   Future<void> _clearAllLogs() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -52,7 +51,6 @@ class _AppLogPageState extends State<AppLogPage> {
     }
   }
 
-  // ✅ 날짜 선택 도우미 함수
   Future<void> _pickDate(bool isStart) async {
     final picked = await showDatePicker(
       context: context,
@@ -86,13 +84,11 @@ class _AppLogPageState extends State<AppLogPage> {
       ),
       body: Column(
         children: [
-          // 🔍 상단 검색 & 기간 필터 영역
           Container(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             color: const Color(0xFF2C3E50),
             child: Column(
               children: [
-                // 1. 키워드 검색바
                 TextField(
                   controller: _searchController,
                   style: const TextStyle(color: Colors.white),
@@ -111,17 +107,15 @@ class _AppLogPageState extends State<AppLogPage> {
                       setState(() => _searchQuery = val.toLowerCase()),
                 ),
                 const SizedBox(height: 12),
-                // 2. 콤팩트 기간 선택 Row
                 Row(
                   children: [
                     _dateBtn(_startDate, 'From', () => _pickDate(true)),
                     const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('~', style: TextStyle(color: Colors.white)),
-                    ),
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child:
+                            Text('~', style: TextStyle(color: Colors.white))),
                     _dateBtn(_endDate, 'To', () => _pickDate(false)),
                     const SizedBox(width: 8),
-                    // 필터 초기화 버튼
                     if (_startDate != null || _endDate != null)
                       IconButton(
                         onPressed: () => setState(() {
@@ -138,8 +132,6 @@ class _AppLogPageState extends State<AppLogPage> {
               ],
             ),
           ),
-
-          // 📜 로그 리스트
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _supabase.from('app_logs').stream(
@@ -151,14 +143,13 @@ class _AppLogPageState extends State<AppLogPage> {
                 final logs = snapshot.data!.where((log) {
                   final msg = (log['message'] ?? '').toString().toLowerCase();
                   final tag = (log['tag'] ?? '').toString().toLowerCase();
+                  // 🎯 여기서 한국 시간으로 변환해서 필터링
                   final createdAt = DateTime.parse(log['created_at']).toLocal();
                   final logDate =
                       DateTime(createdAt.year, createdAt.month, createdAt.day);
 
-                  // 키워드 필터
                   bool matchesSearch =
                       msg.contains(_searchQuery) || tag.contains(_searchQuery);
-                  // 기간 필터
                   bool matchesDate = true;
                   if (_startDate != null)
                     matchesDate &= !logDate.isBefore(_startDate!);
@@ -176,6 +167,14 @@ class _AppLogPageState extends State<AppLogPage> {
                     final color = level == 'error'
                         ? Colors.red
                         : (level == 'warn' ? Colors.orange : Colors.blue);
+
+                    // 🎯 [핵심 수정] UTC 시간을 한국 시간으로 변환 후 포맷팅
+                    final DateTime logDateTime =
+                        DateTime.parse(log['created_at'].toString()).toLocal();
+                    final String timeStr =
+                        DateFormat('HH:mm:ss').format(logDateTime);
+                    final String fullDateStr =
+                        DateFormat('yyyy.MM.dd HH:mm:ss').format(logDateTime);
 
                     return Theme(
                       data: Theme.of(context)
@@ -199,8 +198,8 @@ class _AppLogPageState extends State<AppLogPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(fontSize: 13)),
-                        subtitle: Text(
-                            '${log['tag']} | ${log['created_at'].toString().substring(11, 19)}',
+                        // 🎯 subtitle에 한국 시간 적용
+                        subtitle: Text('${log['tag']} | $timeStr',
                             style: const TextStyle(fontSize: 11)),
                         children: [
                           Container(
@@ -211,11 +210,23 @@ class _AppLogPageState extends State<AppLogPage> {
                                 color: Colors.grey[50],
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: Colors.grey[200]!)),
-                            child: SelectableText(log['message'] ?? '',
-                                style: const TextStyle(
-                                    fontFamily: 'monospace',
-                                    fontSize: 12,
-                                    height: 1.4)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 🎯 상세 보기 안에 전체 날짜/시간 표시 추가
+                                Text('발생 시각: $fullDateStr',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey[600],
+                                        fontWeight: FontWeight.bold)),
+                                const Divider(height: 20),
+                                SelectableText(log['message'] ?? '',
+                                    style: const TextStyle(
+                                        fontFamily: 'monospace',
+                                        fontSize: 12,
+                                        height: 1.4)),
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -230,7 +241,6 @@ class _AppLogPageState extends State<AppLogPage> {
     );
   }
 
-  // 기간 선택용 작은 버튼 위젯
   Widget _dateBtn(DateTime? date, String label, VoidCallback onTap) {
     return Expanded(
       child: InkWell(
@@ -238,9 +248,8 @@ class _AppLogPageState extends State<AppLogPage> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(6),
-          ),
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6)),
           child: Text(
             date == null ? label : DateFormat('yyyy.MM.dd').format(date),
             textAlign: TextAlign.center,
