@@ -87,7 +87,7 @@ class AdminSideMenu extends StatelessWidget {
             index: 8,
             selectedIndex: selectedIndex,
             icon: Icons.history,
-            label: '히스토리',
+            label: '공지사항',
             onTap: onSelected,
           ),
           _MenuItem(

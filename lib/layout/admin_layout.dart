@@ -66,7 +66,7 @@ class _AdminLayoutState extends State<AdminLayout> {
     ), // 7
 
     _AdminPage(
-      title: '히스토리',
+      title: '공지사항',
       body: const HistoryPage(),
     ), // 8
 

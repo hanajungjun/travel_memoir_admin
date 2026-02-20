@@ -32,7 +32,7 @@ class _AdminShellState extends State<AdminShell> {
     AppLogPage(), // 5 로그확인
     PremiumPromptPage(), // 6.프리미엄 프롬프트
     ButtonConfigPage(), // 7 버튼 설정
-    HistoryPage(), // 8 히스토리
+    HistoryPage(), // 8 공지사항
     AdminSettingsPage(), // 9 설정
   ];
 
@@ -45,7 +45,7 @@ class _AdminShellState extends State<AdminShell> {
     '로그확인',
     '프리미엄 프롬프트',
     '버튼 설정',
-    '히스토리',
+    '공지사항',
     '설정',
   ];
 

@@ -7,7 +7,7 @@ class HistoryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Center(
       child: Text(
-        '히스토리 / 로그',
+        '공지사항',
         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
     );
