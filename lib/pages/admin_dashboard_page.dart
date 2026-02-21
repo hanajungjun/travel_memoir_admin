@@ -9,6 +9,7 @@ import 'package:travel_memoir_admin/pages/admin/admin_new_user_chart_page.dart';
 import 'package:travel_memoir_admin/pages/admin/admin_premium_user_list_page.dart';
 import 'package:travel_memoir_admin/pages/admin/admin_premium_expiring_page.dart';
 import 'package:travel_memoir_admin/pages/admin/mini_sparkline.dart';
+import 'package:travel_memoir_admin/storage_urls.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -282,28 +283,30 @@ class _LoadingImageManagerDialogState extends State<LoadingImageManagerDialog> {
       setState(() => _isProcessing = true);
       try {
         final bytes = await image.readAsBytes();
-        final fileName =
-            'system/onload/IMG_${DateTime.now().millisecondsSinceEpoch}.${image.name.split('.').last}';
 
-        // ✅ 에러 해결: upload 메서드 대신 uploadBinary를 사용하거나
-        // 파라미터 타입을 명확히 인지하도록 수정합니다.
+        // ✅ Supabase 스토리지 경로 규격 (system/onload/파일명.webp)
+        final fileName =
+            'system/onload/IMG_${DateTime.now().millisecondsSinceEpoch}.webp';
+
+        // ✅ Supabase travel_images 버킷에 업로드
         await Supabase.instance.client.storage
             .from('travel_images')
             .uploadBinary(
-              // 👈 upload 대신 uploadBinary 사용 시 Uint8List를 바로 받습니다.
               fileName,
               bytes,
-              fileOptions: const FileOptions(upsert: true),
+              fileOptions: const FileOptions(
+                contentType: 'image/webp',
+                upsert: true,
+              ),
             );
 
+        // ✅ DB 업데이트
         _images.add(fileName);
         await _updateDatabase();
       } catch (e) {
-        // 만약 uploadBinary도 없다면, 아래의 upload 방식을 사용해 보세요.
-        // await Supabase.instance.client.storage.from('travel_images').upload(fileName, File(image.path));
         debugPrint("❌ 업로드 에러: $e");
       } finally {
-        setState(() => _isProcessing = false);
+        if (mounted) setState(() => _isProcessing = false);
       }
     }
   }
@@ -311,10 +314,18 @@ class _LoadingImageManagerDialogState extends State<LoadingImageManagerDialog> {
   Future<void> _removeImage(int index) async {
     setState(() => _isProcessing = true);
     try {
+      // ✅ 스토리지에서도 파일 삭제
+      final pathToRemove = _images[index];
+      await Supabase.instance.client.storage
+          .from('travel_images')
+          .remove([pathToRemove]);
+
       _images.removeAt(index);
       await _updateDatabase();
+    } catch (e) {
+      debugPrint("❌ 삭제 에러: $e");
     } finally {
-      setState(() => _isProcessing = false);
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -331,7 +342,7 @@ class _LoadingImageManagerDialogState extends State<LoadingImageManagerDialog> {
       title: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('로딩 이미지 리스트 (랜덤)',
+          const Text('로딩 이미지 관리 (랜덤)',
               style: TextStyle(fontWeight: FontWeight.bold)),
           Text('${_images.length} / 50',
               style: const TextStyle(fontSize: 14, color: Colors.grey)),
@@ -357,9 +368,7 @@ class _LoadingImageManagerDialogState extends State<LoadingImageManagerDialog> {
                         decoration: BoxDecoration(
                           color: Colors.grey[100],
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                              color: Colors.grey[300]!,
-                              style: BorderStyle.solid),
+                          border: Border.all(color: Colors.grey[300]!),
                         ),
                         child:
                             const Icon(Icons.add_a_photo, color: Colors.grey),
@@ -367,16 +376,21 @@ class _LoadingImageManagerDialogState extends State<LoadingImageManagerDialog> {
                     );
                   }
 
-                  final url = Supabase.instance.client.storage
-                      .from('travel_images')
-                      .getPublicUrl(_images[index]);
+                  // ✅ StorageUrls.systemImage를 통해 Supabase URL 생성
+                  final url = StorageUrls.systemImage(_images[index]);
 
                   return Stack(
                     children: [
                       Positioned.fill(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(10),
-                          child: Image.network(url, fit: BoxFit.cover),
+                          child: Image.network(
+                            url,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.broken_image,
+                                    color: Colors.grey),
+                          ),
                         ),
                       ),
                       Positioned(

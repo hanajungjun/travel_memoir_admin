@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-
-import '../models/image_style_model.dart';
-import '../services/image_style_service.dart';
+import 'package:travel_memoir_admin/models/image_style_model.dart';
+import 'package:travel_memoir_admin/services/image_style_service.dart';
+import 'package:travel_memoir_admin/storage_urls.dart';
 
 class ImageStylePage extends StatefulWidget {
   const ImageStylePage({super.key});
@@ -30,9 +30,7 @@ class _ImageStylePageState extends State<ImageStylePage> {
 
   Future<void> _onReorder(int oldIndex, int newIndex) async {
     setState(() {
-      if (oldIndex < newIndex) {
-        newIndex -= 1;
-      }
+      if (oldIndex < newIndex) newIndex -= 1;
       final item = _styles.removeAt(oldIndex);
       _styles.insert(newIndex, item);
     });
@@ -47,12 +45,54 @@ class _ImageStylePageState extends State<ImageStylePage> {
     }
   }
 
+  // ✅ 썸네일 표시 공통 위젯 (슈파베이스 주소 변환 적용)
+  Widget _buildThumbnail(String? url,
+      {double size = 56, bool useCacheBurst = false}) {
+    if (url == null || url.isEmpty) {
+      return Container(
+        width: size,
+        height: size,
+        color: Colors.grey.shade200,
+        child: Icon(Icons.image, size: size / 2, color: Colors.grey),
+      );
+    }
+
+    // ✅ [수정] 이미 전체 URL(http)인 경우 그대로 사용, 아니면 가공
+    String finalUrl =
+        url.startsWith('http') ? url : StorageUrls.systemImage(url);
+
+    if (useCacheBurst) {
+      finalUrl += (finalUrl.contains('?') ? '&' : '?') +
+          "v=${DateTime.now().millisecondsSinceEpoch}";
+    }
+
+    return Image.network(
+      finalUrl,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          width: size,
+          height: size,
+          color: Colors.grey.shade100,
+          child: const Center(
+              child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2))),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) =>
+          Icon(Icons.broken_image, size: size / 2, color: Colors.grey),
+    );
+  }
+
   Future<void> _openEditor({ImageStyleModel? style}) async {
     final titleCtrl = TextEditingController(text: style?.title ?? '');
     final titleEnCtrl = TextEditingController(text: style?.titleEn ?? '');
     final promptCtrl = TextEditingController(text: style?.prompt ?? '');
-    final orderCtrl =
-        TextEditingController(text: style?.sortOrder.toString() ?? '');
 
     bool isPremium = style?.isPremium ?? false;
     Uint8List? pickedImageBytes;
@@ -69,14 +109,14 @@ class _ImageStylePageState extends State<ImageStylePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   TextField(
-                    controller: titleCtrl,
-                    decoration: const InputDecoration(labelText: '스타일 이름 (한글)'),
-                  ),
+                      controller: titleCtrl,
+                      decoration:
+                          const InputDecoration(labelText: '스타일 이름 (한글)')),
                   const SizedBox(height: 12),
                   TextField(
-                    controller: titleEnCtrl,
-                    decoration: const InputDecoration(labelText: '스타일 이름 (영어)'),
-                  ),
+                      controller: titleEnCtrl,
+                      decoration:
+                          const InputDecoration(labelText: '스타일 이름 (영어)')),
                   const SizedBox(height: 12),
                   CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
@@ -100,14 +140,8 @@ class _ImageStylePageState extends State<ImageStylePage> {
                       borderRadius: BorderRadius.circular(8),
                       child: pickedImageBytes != null
                           ? Image.memory(pickedImageBytes!, fit: BoxFit.cover)
-                          : (style?.thumbnailUrl != null &&
-                                  style!.thumbnailUrl!.isNotEmpty)
-                              ? Image.network(
-                                  '${style.thumbnailUrl}?t=${DateTime.now().millisecondsSinceEpoch}',
-                                  fit: BoxFit.cover,
-                                )
-                              : const Icon(Icons.image,
-                                  size: 50, color: Colors.grey),
+                          : _buildThumbnail(style?.thumbnailUrl,
+                              size: 140, useCacheBurst: true),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -127,7 +161,7 @@ class _ImageStylePageState extends State<ImageStylePage> {
                   const SizedBox(height: 24),
                   TextField(
                     controller: promptCtrl,
-                    maxLines: 10,
+                    maxLines: 8,
                     decoration: const InputDecoration(
                       labelText: '이미지 프롬프트',
                       alignLabelWithHint: true,
@@ -174,7 +208,6 @@ class _ImageStylePageState extends State<ImageStylePage> {
           titleEn: titleEnCtrl.text,
           prompt: promptCtrl.text,
           thumbnailUrl: thumbnailUrl,
-          sortOrder: int.tryParse(orderCtrl.text) ?? style.sortOrder,
           isPremium: isPremium,
         ),
       );
@@ -215,9 +248,8 @@ class _ImageStylePageState extends State<ImageStylePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('이미지 스타일 관리 (정렬 최적화)',
+        title: const Text('이미지 스타일 관리',
             style: TextStyle(fontWeight: FontWeight.bold)),
-        elevation: 0,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
@@ -250,77 +282,36 @@ class _ImageStylePageState extends State<ImageStylePage> {
                           const SizedBox(width: 12),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(6),
-                            child: style.thumbnailUrl != null &&
-                                    style.thumbnailUrl!.isNotEmpty
-                                ? Image.network(
-                                    '${style.thumbnailUrl}?v=${DateTime.now().millisecondsSinceEpoch}',
-                                    width: 56,
-                                    height: 56,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Container(
-                                    width: 56,
-                                    height: 56,
-                                    color: Colors.grey.shade200,
-                                    child: const Icon(Icons.image,
-                                        size: 28, color: Colors.grey),
-                                  ),
+                            child: _buildThumbnail(style.thumbnailUrl),
                           ),
                         ],
                       ),
-                      title: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${style.title} (${style.titleEn})',
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          if (style.isPremium)
-                            Container(
-                              margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.amber.shade100,
-                                borderRadius: BorderRadius.circular(4),
-                                border:
-                                    Border.all(color: Colors.amber.shade300),
-                              ),
-                              child: const Text(
-                                'PREMIUM',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.amber, // 어두운 금색
-                                ),
-                              ),
-                            ),
-                        ],
+                      title: Text(
+                        '${style.title} (${style.titleEn})',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
-                      // 🗑 지저분했던 subtitle 삭제 완료!
+                      subtitle: style.isPremium
+                          ? Text('PREMIUM',
+                              style: TextStyle(
+                                  color: Colors.amber.shade700,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold))
+                          : null,
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Switch(
-                            value: style.isEnabled,
-                            onChanged: (v) => _toggle(style, v),
-                            activeColor: Colors.blue,
-                          ),
-                          const SizedBox(width: 8),
+                              value: style.isEnabled,
+                              onChanged: (v) => _toggle(style, v)),
                           IconButton(
-                            icon:
-                                const Icon(Icons.edit, color: Colors.blueGrey),
-                            onPressed: () => _openEditor(style: style),
-                          ),
+                              icon: const Icon(Icons.edit,
+                                  color: Colors.blueGrey),
+                              onPressed: () => _openEditor(style: style)),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline,
-                                color: Colors.redAccent),
-                            onPressed: () => _confirmDelete(style),
-                          ),
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Colors.redAccent),
+                              onPressed: () => _confirmDelete(style)),
                         ],
                       ),
                     ),
